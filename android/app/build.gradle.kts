@@ -8,8 +8,6 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-// Load keystore properties
-// Kita gunakan Properties() dan FileInputStream() langsung karena sudah di-import di atas
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -24,6 +22,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        
+        // [WAJIB 1] Agar fitur Notifikasi (Java 8) jalan di semua HP
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -32,14 +32,18 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.oil_monitoring.app"
+        // Ganti ID ini sesuai package name Anda jika berbeda
+        applicationId = "com.oil_monitoring.app" 
+        
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // [WAJIB 2] Agar aplikasi tidak crash karena kegemukan kode (Firebase + Maps + Notif)
+        multiDexEnabled = true 
     }
 
-    // Konfigurasi Signing Config
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String
@@ -51,13 +55,8 @@ android {
 
     buildTypes {
         release {
-            // Gunakan config release yang baru dibuat
             signingConfig = signingConfigs.getByName("release")
-            
-            // Opsional: Aktifkan jika ingin mengecilkan ukuran APK (tapi hati-hati bug)
-            // isMinifyEnabled = true
-            // isShrinkResources = true
-            // proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
+            // isMinifyEnabled = true // Aktifkan nanti jika proguard sudah siap
         }
     }
 }
@@ -65,7 +64,11 @@ android {
 flutter {
     source = "../.."
 }
+
 dependencies {
-    // Library ini WAJIB ada karena isCoreLibraryDesugaringEnabled = true
+    // Library Desugaring (Penerjemah Java 8)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    
+    // Library MultiDex (Pecah kode biar muat)
+    implementation("androidx.multidex:multidex:2.0.1")
 }
