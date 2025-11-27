@@ -7,10 +7,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-val keystoreProperties = java.util.Properties()
+// Load keystore properties
+// Kita gunakan Properties() dan FileInputStream() langsung karena sudah di-import di atas
+val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -35,21 +37,22 @@ android {
         versionName = flutter.versionName
     }
 
-    // 2. TAMBAHAN BARU: Konfigurasi Signing Config
+    // Konfigurasi Signing Config
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String
             keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
+            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
             storePassword = keystoreProperties["storePassword"] as String
         }
     }
 
     buildTypes {
         release {
+            // Gunakan config release yang baru dibuat
             signingConfig = signingConfigs.getByName("release")
             
-            // Opsional: Untuk mengecilkan ukuran APK (obfuscation)
+            // Opsional: Aktifkan jika ingin mengecilkan ukuran APK (tapi hati-hati bug)
             // isMinifyEnabled = true
             // isShrinkResources = true
             // proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")

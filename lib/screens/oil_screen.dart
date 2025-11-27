@@ -12,11 +12,13 @@ class OilScreen extends StatefulWidget {
 class _OilScreenState extends State<OilScreen> {
   final TextEditingController _kmController = TextEditingController();
   
-  // Referensi Database
-  final CollectionReference _bikes = FirebaseFirestore.instance.collection('bikes');
-  final String _docId = 'my_motor'; // ID unik motor kamu
+  // PERBAIKAN 1: Ubah menjadi getter 'get'.
+  // Ini mencegah crash saat inisialisasi awal. Database hanya akan dipanggil saat fungsi _loadData dijalankan.
+  CollectionReference get _bikes => FirebaseFirestore.instance.collection('bikes');
+  
+  final String _docId = 'my_motor'; 
 
-  // Variable Lokal (Default Value)
+  // Variable Lokal
   int _currentKm = 0;
   int _lastEngineOilChangeKm = 0;
   final int _engineOilInterval = 2000;
@@ -26,7 +28,7 @@ class _OilScreenState extends State<OilScreen> {
   final int _gearOilInterval = 6000;
   bool _isGearLocked = false;
 
-  bool _isLoading = true; // Indikator loading
+  bool _isLoading = true; 
 
   @override
   void initState() {
@@ -34,24 +36,41 @@ class _OilScreenState extends State<OilScreen> {
     _loadDataFromFirebase();
   }
 
+  @override
+  void dispose() {
+    _kmController.dispose(); 
+    super.dispose();
+  }
+
   // --- FUNGSI FIREBASE: LOAD DATA ---
   Future<void> _loadDataFromFirebase() async {
     try {
+      // Mengakses _bikes di sini lebih aman karena sudah masuk blok try-catch
       DocumentSnapshot doc = await _bikes.doc(_docId).get();
 
+      // PERBAIKAN 2: Cek 'mounted'. Jika layar sudah ditutup, stop proses agar tidak error.
+      if (!mounted) return; 
+
       if (doc.exists) {
-        // Jika data ada di Firebase, ambil datanya
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        setState(() {
-          _currentKm = data['currentKm'] ?? 0;
-          _lastEngineOilChangeKm = data['lastEngineOilChangeKm'] ?? 0;
-          _lastGearOilChangeKm = data['lastGearOilChangeKm'] ?? 0;
-          _isEngineLocked = data['isEngineLocked'] ?? false;
-          _isGearLocked = data['isGearLocked'] ?? false;
-          _isLoading = false;
-        });
+        // PERBAIKAN 3: Safe Casting. Ambil data dengan aman.
+        final data = doc.data() as Map<String, dynamic>?;
+
+        if (data != null) {
+          setState(() {
+            // PERBAIKAN 4: Konversi Super Aman.
+            // Memaksa data jadi String dulu baru di-parse ke int.
+            // Ini mencegah Force Close jika di database tersimpan sebagai teks (misal "1000" bukan 1000).
+            _currentKm = int.tryParse(data['currentKm'].toString()) ?? 0;
+            _lastEngineOilChangeKm = int.tryParse(data['lastEngineOilChangeKm'].toString()) ?? 0;
+            _lastGearOilChangeKm = int.tryParse(data['lastGearOilChangeKm'].toString()) ?? 0;
+            
+            _isEngineLocked = data['isEngineLocked'] ?? false;
+            _isGearLocked = data['isGearLocked'] ?? false;
+            _isLoading = false;
+          });
+        }
       } else {
-        // Jika data belum ada (pengguna baru), buat data default
+        // Buat data default jika belum ada
         await _bikes.doc(_docId).set({
           'currentKm': 0,
           'lastEngineOilChangeKm': 0,
@@ -59,11 +78,12 @@ class _OilScreenState extends State<OilScreen> {
           'isEngineLocked': false,
           'isGearLocked': false,
         });
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint("Error loading data: $e");
-      setState(() => _isLoading = false);
+      // Pastikan loading hilang meski error, agar tidak stuck di layar putih
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -73,35 +93,35 @@ class _OilScreenState extends State<OilScreen> {
       await _bikes.doc(_docId).update(dataToUpdate);
     } catch (e) {
       debugPrint("Gagal update ke Firebase: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Gagal menyimpan data ke internet")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Gagal menyimpan data ke internet")),
+        );
+      }
     }
   }
 
-  // Getter Sisa Jarak
   int get _remainingEngineKm => (_lastEngineOilChangeKm + _engineOilInterval) - _currentKm;
   int get _remainingGearKm => (_lastGearOilChangeKm + _gearOilInterval) - _currentKm;
 
-  // Fungsi Update Odometer (Simpan ke Firebase)
+  // Fungsi Update Odometer 
   void _updateOdometer() async {
     if (_kmController.text.isNotEmpty) {
-      int newKm = int.parse(_kmController.text);
+      // PERBAIKAN 5: tryParse mencegah crash jika user input simbol aneh
+      int? newKm = int.tryParse(_kmController.text);
       
-      // Update UI Lokal dulu biar cepat
-      setState(() {
-        _currentKm = newKm;
-      });
-
-      // Simpan ke Firebase
-      await _updateFirebase({'currentKm': newKm});
-
-      _kmController.clear();
-      if (mounted) Navigator.pop(context);
+      if (newKm != null) {
+        setState(() {
+          _currentKm = newKm;
+        });
+        await _updateFirebase({'currentKm': newKm});
+        _kmController.clear();
+        if (mounted) Navigator.pop(context);
+      }
     }
   }
 
-  // Fungsi Reset Service (Simpan ke Firebase)
+  // Fungsi Reset Service
   void _resetService(String type) {
     showDialog(
       context: context, 
@@ -136,9 +156,7 @@ class _OilScreenState extends State<OilScreen> {
                 }
               });
 
-              // Kirim Update ke Firebase
               await _updateFirebase(updateData);
-
               if (mounted) Navigator.pop(context);
             }, 
             child: const Text("Ya, Sudah Ganti", style: TextStyle(color: AppColors.primary))
@@ -148,7 +166,7 @@ class _OilScreenState extends State<OilScreen> {
     );
   }
 
-  // Fungsi Edit Manual (Simpan ke Firebase)
+  // Fungsi Edit Manual
   void _showManualEditDialog(String title, int currentValue, Function(int) onSave, String fieldName) {
     _kmController.text = currentValue.toString();
     showDialog(
@@ -173,14 +191,13 @@ class _OilScreenState extends State<OilScreen> {
           TextButton(
             onPressed: () async {
               if (_kmController.text.isNotEmpty) {
-                int val = int.parse(_kmController.text);
-                onSave(val); // Update State Lokal
-                
-                // Update Firebase
-                await _updateFirebase({fieldName: val});
-
-                _kmController.clear();
-                if (mounted) Navigator.pop(context);
+                int? val = int.tryParse(_kmController.text);
+                if (val != null) {
+                  onSave(val); 
+                  await _updateFirebase({fieldName: val});
+                  _kmController.clear();
+                  if (mounted) Navigator.pop(context);
+                }
               }
             }, 
             child: const Text("Simpan", style: TextStyle(color: AppColors.primary))
@@ -273,10 +290,6 @@ class _OilScreenState extends State<OilScreen> {
       ),
     );
   }
-
-  // ... (Widget _buildOilCard, _buildMiniInfo, dan _showUpdateDialog SAMA PERSIS dengan sebelumnya)
-  // Silakan copy widget UI tersebut dari jawaban sebelumnya agar kode tidak terlalu panjang di sini.
-  // Pastikan widget _buildOilCard menerima parameter isLocked.
   
   Widget _buildOilCard({
     required String title,
