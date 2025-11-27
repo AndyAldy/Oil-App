@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:uuid/uuid.dart';
-import '../constants.dart'; // Menggunakan style repo Anda
+import '../constants.dart';
 import '../models/chat_message.dart';
 import '../services/gemini_service.dart';
 
@@ -13,7 +13,9 @@ class AiScreen extends StatefulWidget {
 }
 
 class _AiScreenState extends State<AiScreen> {
-  late final GeminiService _geminiService; // Menggunakan late untuk inisialisasi
+  // Ubah menjadi nullable agar bisa dicek apakah sudah init atau belum
+  GeminiService? _geminiService; 
+  
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
@@ -24,38 +26,60 @@ class _AiScreenState extends State<AiScreen> {
   @override
   void initState() {
     super.initState();
-    // Inisialisasi service
+    _initGemini();
+  }
+
+  // Fungsi terpisah untuk inisialisasi agar lebih rapi
+  void _initGemini() {
     try {
       _geminiService = GeminiService();
     } catch (e) {
       debugPrint("Error init Gemini: $e");
+      // Tampilkan error ke chat jika inisialisasi gagal (misal .env hilang)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _messages.add(ChatMessage(
+              id: _uuid.v4(),
+              text: "Gagal memuat sistem AI: $e. Pastikan file .env sudah benar.",
+              isFromUser: false,
+              isError: true,
+            ));
+          });
+        }
+      });
     }
   }
 
   void _scrollDown() {
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      },
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<void> _sendMessage() async {
     if (_textController.text.trim().isEmpty) return;
 
+    // Cek apakah service sudah siap
+    if (_geminiService == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("AI belum siap. Cek koneksi atau restart aplikasi.")),
+      );
+      return;
+    }
+
     final userMessageText = _textController.text;
     _textController.clear();
-    // FocusScope.of(context).unfocus(); // Opsional: Tutup keyboard
 
     setState(() {
       _isLoading = true;
-      // 1. Tambah pesan User
+      // 1. Pesan User
       _messages.add(ChatMessage(
         id: _uuid.v4(),
         text: userMessageText,
@@ -63,7 +87,7 @@ class _AiScreenState extends State<AiScreen> {
       ));
       _scrollDown();
 
-      // 2. Tambah indikator typing AI
+      // 2. Indikator Typing
       _messages.add(ChatMessage(
         id: _uuid.v4(),
         text: '...',
@@ -74,13 +98,13 @@ class _AiScreenState extends State<AiScreen> {
     });
 
     try {
-      final responseText = await _geminiService.sendMessage(userMessageText);
+      // Gunakan service yang sudah dicek null-nya
+      final responseText = await _geminiService!.sendMessage(userMessageText);
       
       if (!mounted) return;
       setState(() {
-        // Hapus indikator typing
         _messages.removeWhere((msg) => msg.isTyping);
-        // 3. Tambah respon AI
+        // 3. Respon AI Sukses
         _messages.add(ChatMessage(
           id: _uuid.v4(),
           text: responseText,
@@ -91,9 +115,15 @@ class _AiScreenState extends State<AiScreen> {
       if (!mounted) return;
       setState(() {
         _messages.removeWhere((msg) => msg.isTyping);
+        
+        // --- PERBAIKAN PENTING DI SINI ---
+        // Tampilkan pesan error ASLI dari service agar kita tahu masalahnya
+        // Hapus tulisan "Exception:" agar lebih bersih
+        final errorMessage = e.toString().replaceAll("Exception: ", "");
+        
         _messages.add(ChatMessage(
           id: _uuid.v4(),
-          text: 'Maaf, koneksi bermasalah. Pastikan internet lancar dan API Key benar.',
+          text: errorMessage, // Tampilkan error spesifik (misal: API Key Invalid)
           isFromUser: false,
           isError: true,
         ));
@@ -108,9 +138,8 @@ class _AiScreenState extends State<AiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Style dari constants.dart Anda
     return Scaffold(
-      backgroundColor: AppColors.background, // Hitam pekat (#121212)
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("ASISTEN MEKANIK"),
         backgroundColor: AppColors.background,
@@ -119,7 +148,6 @@ class _AiScreenState extends State<AiScreen> {
       ),
       body: Column(
         children: [
-          // --- AREA CHAT LIST ---
           Expanded(
             child: _messages.isEmpty
                 ? _buildEmptyState()
@@ -132,15 +160,12 @@ class _AiScreenState extends State<AiScreen> {
                     },
                   ),
           ),
-
-          // --- INPUT BAR ---
           _buildInputBar(),
         ],
       ),
     );
   }
 
-  // Widget tampilan kosong
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -157,7 +182,6 @@ class _AiScreenState extends State<AiScreen> {
     );
   }
 
-  // Widget Bubble Chat (Diadaptasi ke Style AppColors)
   Widget _buildMessageBubble(ChatMessage message) {
     if (message.isTyping) {
       return Align(
@@ -183,9 +207,9 @@ class _AiScreenState extends State<AiScreen> {
     if (message.isError) {
       bubbleColor = Colors.red.shade900;
     } else if (message.isFromUser) {
-      bubbleColor = AppColors.primary; // Merah Honda (#D32F2F)
+      bubbleColor = AppColors.primary;
     } else {
-      bubbleColor = AppColors.surface; // Abu Gelap (#1E1E1E)
+      bubbleColor = AppColors.surface;
     }
 
     return Align(
@@ -216,11 +240,10 @@ class _AiScreenState extends State<AiScreen> {
     );
   }
 
-  // Widget Input Bar (Diadaptasi ke Style AppColors)
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: AppColors.surface, // Warna background input bar
+      color: AppColors.surface,
       child: Row(
         children: [
           Expanded(
@@ -231,7 +254,7 @@ class _AiScreenState extends State<AiScreen> {
                 hintText: 'Ketik pertanyaan...',
                 hintStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
-                fillColor: Colors.black12, // Lebih gelap dari surface
+                fillColor: Colors.black12,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),

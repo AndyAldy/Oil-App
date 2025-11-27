@@ -1,12 +1,11 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import ini
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiService {
   late final GenerativeModel _model;
   late final ChatSession _chat;
 
   GeminiService() {
-    // Ambil Key dari .env
     final apiKey = dotenv.env['GEMINI_API_KEY'];
 
     if (apiKey == null || apiKey.isEmpty) {
@@ -14,10 +13,10 @@ class GeminiService {
     }
 
     _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       apiKey: apiKey,
       systemInstruction: Content.system('''
-        Kamu adalah "RoadSync AI", asisten mekanik sepeda motor profesional dengan spesialisasi mendalam pada motor-motor di Indonesia (Honda, Yamaha, Suzuki).
+        Kamu adalah "mech AI", asisten mekanik sepeda motor profesional dengan spesialisasi mendalam pada motor-motor di Indonesia (Honda, Yamaha, Suzuki).
 
         **ATURAN WAJIB (HARGA MATI):**
         1. **TANYA TIPE MOTOR DULU:** Jika user belum menyebutkan merk dan tipe motor (misal: Vario 150, NMAX New, Beat Deluxe), KAMU WAJIB BERTANYA DULU. Jangan berikan diagnosa sebelum tahu motornya apa.
