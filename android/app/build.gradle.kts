@@ -65,3 +65,7 @@ android {
 flutter {
     source = "../.."
 }
+dependencies {
+    // Library ini WAJIB ada karena isCoreLibraryDesugaringEnabled = true
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+}
