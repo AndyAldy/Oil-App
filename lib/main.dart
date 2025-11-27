@@ -3,13 +3,18 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'constants.dart';
 import 'screens/dashboard.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // GANTI: Gunakan String notifier untuk 3 mode ('system', 'light', 'dark')
 final ValueNotifier<String> themeNotifier = ValueNotifier('system');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint("Gagal load .env: $e");
+  }
   try {
     await Firebase.initializeApp();
   } catch (e) {

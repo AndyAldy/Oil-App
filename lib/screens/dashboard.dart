@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../widgets/dashboard_card.dart';
 import 'oil_screen.dart';
 import 'settings_screen.dart';
+import 'ai_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -182,6 +183,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: "Musik",
                     subtitle: "Putar Lagu",
                     onTap: _launchMusic,
+                  ),
+                  DashboardCard(
+                    icon: Icons.smart_toy_outlined, // Ikon Robot/AI
+                    title: "Tanya AI",
+                    subtitle: "Asisten Mekanik",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AiScreen()),
+                      );
+                    },
                   ),
                 ],
               ),
