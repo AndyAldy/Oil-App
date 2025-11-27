@@ -4,12 +4,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'constants.dart';
 import 'screens/dashboard.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'services/notification_service.dart';
 
 // GANTI: Gunakan String notifier untuk 3 mode ('system', 'light', 'dark')
 final ValueNotifier<String> themeNotifier = ValueNotifier('system');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final notificationService = NotificationService();
+  await notificationService.init();
+  await notificationService.scheduleDailyNotification();
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
@@ -22,7 +26,6 @@ void main() async {
   }
 
   final prefs = await SharedPreferences.getInstance();
-  // Load settingan terakhir, defaultnya 'system' (otomatis)
   themeNotifier.value = prefs.getString('theme_mode') ?? 'system';
 
   runApp(const OilMonitorApp());
