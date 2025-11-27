@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "397104178352",
+    "project_id": "oil-monitoring-4ddea",
+    "storage_bucket": "oil-monitoring-4ddea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:397104178352:android:d717e5f9048670e5ea4775",
+        "android_client_info": {
+          "package_name": "com.oil_monitoring.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0RszadoMC6Si0dxRyVwZ1d_ypQcwxX9g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
